@@ -7,7 +7,7 @@ from kivymd.uix.switch import MDSwitch
 from kivy.clock import Clock
 from kivy.uix.image import Image
 from kivy.core.audio import SoundLoader
-from kivy.uix.vibration import Vibration
+from plyer import vibrator  # For vibration support
 
 # Main Screen UI
 class MainScreen(MDScreen):
@@ -57,7 +57,7 @@ class MainScreen(MDScreen):
 
     def trigger_alarm(self):
         if self.vibration_enabled:
-            Vibration.vibrate()
+            vibrator.vibrate()  # Trigger vibration
         if self.sound_enabled and self.sound:
             self.sound.play()
 
@@ -87,7 +87,7 @@ class SettingsScreen(MDScreen):
         self.back_button.bind(on_release=self.go_back)
         self.add_widget(self.back_button)
 
-        self.sound = SoundLoader.load("assets/alarm_sound.mp3")
+        self.sound = SoundLoader.load("sounds/alarm_sound.mp3")
 
     def toggle_vibration(self, instance, value):
         # Set the vibration preference
