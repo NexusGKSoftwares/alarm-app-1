@@ -1,125 +1,114 @@
 from kivy.lang import Builder
+from kivy.uix.switch import Switch  # Using Kivy's native Switch instead of MDSwitch
 from kivymd.app import MDApp
-from kivymd.uix.screen import MDScreen
 from kivymd.uix.button import MDRaisedButton
+from kivymd.uix.screen import MDScreen
 from kivymd.uix.label import MDLabel
-from kivymd.uix.switch import MDSwitch
-from kivy.clock import Clock
-from kivy.uix.image import Image
+from kivymd.uix.boxlayout import BoxLayout
 from kivy.core.audio import SoundLoader
-from plyer import vibrator  # For vibration support
+from kivy.uix.slider import Slider
+from kivy.clock import Clock
 
-# Main Screen UI
-class MainScreen(MDScreen):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+# Your app class
+class AlarmApp(MDApp):
+    def build(self):
+        self.theme_cls.primary_palette = "BlueGray"
+        
+        # Creating the main screen layout
+        screen = MDScreen()
+        layout = BoxLayout(orientation="vertical", padding=20, spacing=10)
+        
+        # Add title label
+        title_label = MDLabel(
+            text="Alarm App", theme_text_color="Secondary", halign="center", font_style="H5"
+        )
+        layout.add_widget(title_label)
+        
+        # Add switch for vibration and sound control
+        self.switch_layout = BoxLayout(size_hint_y=None, height=50, orientation="horizontal")
+        
+        self.vibration_switch = Switch(active=True)
+        self.vibration_switch.bind(active=self.on_vibration_switch_active)
+        
+        self.sound_switch = Switch(active=True)
+        self.sound_switch.bind(active=self.on_sound_switch_active)
+        
+        self.switch_layout.add_widget(MDLabel(text="Vibration", theme_text_color="Secondary"))
+        self.switch_layout.add_widget(self.vibration_switch)
+        
+        self.switch_layout.add_widget(MDLabel(text="Sound", theme_text_color="Secondary"))
+        self.switch_layout.add_widget(self.sound_switch)
+        
+        layout.add_widget(self.switch_layout)
 
-        # Set an icon at the top of the screen
-        self.icon_image = Image(source="assets/icon.png", size_hint=(None, None), size=(100, 100))
-        self.icon_image.pos_hint = {"center_x": 0.5, "center_y": 0.9}
-        self.add_widget(self.icon_image)
+        # Add countdown button
+        self.countdown_button = MDRaisedButton(
+            text="Start Countdown", size_hint=(None, None), size=("200dp", "50dp")
+        )
+        self.countdown_button.bind(on_press=self.start_countdown)
+        layout.add_widget(self.countdown_button)
 
-        # Add a countdown label
-        self.countdown_label = MDLabel(text="00:00", halign="center", theme_text_color="Secondary")
-        self.countdown_label.pos_hint = {"center_x": 0.5, "center_y": 0.7}
-        self.add_widget(self.countdown_label)
+        # Add countdown label
+        self.countdown_label = MDLabel(text="Time Left: 00:00", halign="center", font_style="H6")
+        layout.add_widget(self.countdown_label)
 
-        # Set Alarm Button
-        self.set_alarm_button = MDRaisedButton(text='Set Alarm', size_hint=(None, None), size=(200, 50))
-        self.set_alarm_button.pos_hint = {"center_x": 0.5, "center_y": 0.5}
-        self.set_alarm_button.bind(on_release=self.set_alarm)
-        self.add_widget(self.set_alarm_button)
+        # Add slider for timer
+        self.timer_slider = Slider(min=0, max=60, value=10, step=1)
+        self.timer_slider.bind(value=self.update_timer)
+        layout.add_widget(self.timer_slider)
 
-        # Navigate to Settings Screen
-        self.settings_button = MDRaisedButton(text='Settings', size_hint=(None, None), size=(200, 50))
-        self.settings_button.pos_hint = {"center_x": 0.5, "center_y": 0.3}
-        self.settings_button.bind(on_release=self.open_settings)
-        self.add_widget(self.settings_button)
+        # Add the layout to the screen
+        screen.add_widget(layout)
 
-        self.alarm_time = None
-        self.vibration_enabled = False
-        self.sound_enabled = False
-        self.sound = None
+        return screen
 
-    def set_alarm(self, instance):
-        # Start the countdown for the alarm (example: 5 minutes)
-        self.alarm_time = 5 * 60  # 5 minutes in seconds
-        Clock.schedule_interval(self.update_countdown, 1)
-
-    def update_countdown(self, dt):
-        if self.alarm_time > 0:
-            mins, secs = divmod(self.alarm_time, 60)
-            self.countdown_label.text = f"{mins:02d}:{secs:02d}"
-            self.alarm_time -= 1
+    def on_vibration_switch_active(self, instance, value):
+        # Handle vibration toggle
+        if value:
+            print("Vibration is enabled.")
         else:
-            Clock.unschedule(self.update_countdown)
+            print("Vibration is disabled.")
+
+    def on_sound_switch_active(self, instance, value):
+        # Handle sound toggle
+        if value:
+            print("Sound is enabled.")
+        else:
+            print("Sound is disabled.")
+
+    def start_countdown(self, instance):
+        # Start countdown when button is pressed
+        self.time_left = self.timer_slider.value
+        self.update_timer_label()
+        self.alarm_sound = SoundLoader.load("alarm_sound.mp3")  # Example sound file
+        if self.alarm_sound:
+            self.alarm_sound.loop = True
+        Clock.schedule_interval(self.countdown, 1)
+
+    def countdown(self, dt):
+        # Countdown logic
+        if self.time_left > 0:
+            self.time_left -= 1
+            self.update_timer_label()
+        else:
             self.trigger_alarm()
 
+    def update_timer_label(self):
+        minutes = int(self.time_left) // 60
+        seconds = int(self.time_left) % 60
+        self.countdown_label.text = f"Time Left: {minutes:02}:{seconds:02}"
+
+    def update_timer(self, instance, value):
+        # Update timer based on slider value
+        self.time_left = value
+        self.update_timer_label()
+
     def trigger_alarm(self):
-        if self.vibration_enabled:
-            vibrator.vibrate()  # Trigger vibration
-        if self.sound_enabled and self.sound:
-            self.sound.play()
+        # Trigger alarm when countdown reaches zero
+        if self.alarm_sound:
+            self.alarm_sound.play()
+        print("Time's up!")
 
-    def open_settings(self, instance):
-        self.manager.current = "settings"
-
-# Settings Screen UI
-class SettingsScreen(MDScreen):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-        # Vibration Toggle
-        self.vibration_switch = MDSwitch(active=False, size_hint=(None, None), size=(50, 50))
-        self.vibration_switch.pos_hint = {"center_x": 0.5, "center_y": 0.7}
-        self.vibration_switch.bind(active=self.toggle_vibration)
-        self.add_widget(self.vibration_switch)
-
-        # Sound Toggle
-        self.sound_switch = MDSwitch(active=False, size_hint=(None, None), size=(50, 50))
-        self.sound_switch.pos_hint = {"center_x": 0.5, "center_y": 0.6}
-        self.sound_switch.bind(active=self.toggle_sound)
-        self.add_widget(self.sound_switch)
-
-        # Back Button
-        self.back_button = MDRaisedButton(text='Back', size_hint=(None, None), size=(200, 50))
-        self.back_button.pos_hint = {"center_x": 0.5, "center_y": 0.4}
-        self.back_button.bind(on_release=self.go_back)
-        self.add_widget(self.back_button)
-
-        self.sound = SoundLoader.load("sounds/alarm_sound.mp3")
-
-    def toggle_vibration(self, instance, value):
-        # Set the vibration preference
-        app = MDApp.get_running_app()
-        app.vibration_enabled = value
-
-    def toggle_sound(self, instance, value):
-        # Set the sound preference
-        app = MDApp.get_running_app()
-        app.sound_enabled = value
-
-    def go_back(self, instance):
-        self.manager.current = "main"
-
-
-# Main App
-class MyApp(MDApp):
-    def build(self):
-        self.screen_manager = Builder.load_string("""
-ScreenManager:
-    MainScreen:
-        name: "main"
-    SettingsScreen:
-        name: "settings"
-""")
-        return self.screen_manager
-
-    def on_start(self):
-        # Initialize default values
-        self.vibration_enabled = False
-        self.sound_enabled = False
-
-
+# Run the app
 if __name__ == "__main__":
-    MyApp().run()
+    AlarmApp().run()
